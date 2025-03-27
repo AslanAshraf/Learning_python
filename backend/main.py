@@ -4,56 +4,68 @@ import instaloader
 import re
 import requests
 import os
+from io import BytesIO
+from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
-# ✅ CORS Middleware add karein
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # "*" means all domains allowed  0.0.0.0 -> 0.0.0.1  255.255.255.255 
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # All methods allowed (GET, POST, etc.)
-    allow_headers=["*"],  # All headers allowed content-type , stream , mutipart
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-def get_reel_video_url(url: str):
-    """Fetch Instagram Reel Video URL""" # pk 3 table 1-1000
+def get_reel_data(url: str):
+    """Fetch Instagram Reel data including video URL and thumbnail"""
     try:
         L = instaloader.Instaloader()
-        post_id = url.split("/")[-2]  # Extract post ID
+        post_id = url.split("/")[-2]
         post = instaloader.Post.from_shortcode(L.context, post_id)
-        return post.video_url
+        
+        # Get thumbnail - we'll use the post's display URL which usually works better
+        thumbnail_url = f"https://www.instagram.com/p/{post.shortcode}/media/?size=m"
+        
+        return {
+            "video_url": post.video_url,
+            "thumbnail_url": thumbnail_url,
+            "shortcode": post.shortcode
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-def download_video(video_url: str, post_id: str):
-    """Download Reel Video from URL"""
-    response = requests.get(video_url)
-    if response.status_code == 200:
-        file_path = f"downloads/{post_id}.mp4"
-        os.makedirs("downloads", exist_ok=True)
-        with open(file_path, "wb") as file:
-            file.write(response.content)
-        # with open(f"hassan/{file_path}","wb").write(response.content):
-        #     print("all good")
-            
-        return file_path
-    else:
-        raise HTTPException(status_code=400, detail="Failed to download video.")
-
 @app.get("/download/")
-def download_reel(url: str):
-    """API to Fetch & Download Instagram Reel Video"""
+async def download_reel(url: str):
+    """API to Fetch Instagram Reel Data"""
     url = url.strip()
     
     if not re.match(r"https://www.instagram.com/reel/[A-Za-z0-9_-]+/", url):
         raise HTTPException(status_code=400, detail="Invalid Instagram Reel URL.")
 
-    video_url = get_reel_video_url(url)
-    post_id = url.split("/")[-2]
-    file_path = download_video(video_url, post_id)
-    
-    return {
-        "download_url": video_url,
-        "file_path": file_path
-    }
+    try:
+        reel_data = get_reel_data(url)
+        return {
+            "download_url": reel_data["video_url"],
+            "thumbnail_url": reel_data["thumbnail_url"],
+            "shortcode": reel_data["shortcode"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/thumbnail/")
+async def get_thumbnail(url: str):
+    """Proxy endpoint to serve thumbnails"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, stream=True)
+        
+        if response.status_code == 200:
+            return StreamingResponse(BytesIO(response.content), media_type="image/jpeg")
+        else:
+            raise HTTPException(status_code=400, detail="Failed to fetch thumbnail")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

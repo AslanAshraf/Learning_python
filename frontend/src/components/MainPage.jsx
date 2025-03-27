@@ -1,29 +1,40 @@
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
-import InputForm from "./InputForm";
-import DownloadList from "./DownloadList ";
+import InputField from "./InputField";
+import DownloadButton from "./DownloadButton";
+import DownloadedReel from "./DownloadedReel";
 
-function MainPage() {
-  const [downloadUrls, setDownloadUrls] = useState(() => {
-    const savedUrls = localStorage.getItem("downloadedReels");
-    return savedUrls ? JSON.parse(savedUrls) : [];
-  });
+function App() {
+  const [url, setUrl] = useState("");
+  const [download, setDownload] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedQuality, setSelectedQuality] = useState("720");
 
-  useEffect(() => {
-    localStorage.setItem("downloadedReels", JSON.stringify(downloadUrls));
-  }, [downloadUrls]);
+  const handleDownload = async () => {
+    if (!url.trim()) {
+      alert("Please enter a valid Instagram Reel URL.");
+      return;
+    }
 
-  const handleDownload = async (url) => {
+    setLoading(true);
+
     try {
-      const response = await axios.get(`http://127.0.0.1:5000/download/`, {
-        params: { url },
+      const response = await axios.get("http://127.0.0.1:5000/download/", {
+        params: { url, quality: selectedQuality },
       });
 
-      const newUrls = [...downloadUrls, response.data.download_url];
-      setDownloadUrls(newUrls);
-
+      setDownload({
+        videoUrl: response.data.download_url,
+        thumbnailUrl: `http://127.0.0.1:5000/thumbnail/?url=${encodeURIComponent(response.data.thumbnail_url)}`,
+        shortcode: response.data.shortcode,
+        quality: selectedQuality,
+      });
+      setUrl("");
     } catch (error) {
       alert("Failed to fetch the video. Try again.");
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,7 +47,7 @@ function MainPage() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const a = document.createElement("a");
       a.href = url;
-      a.download = "Instagram_Reel.mp4";
+      a.download = `Instagram_Reel_${download.quality}p.mp4`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -47,14 +58,20 @@ function MainPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold mb-6 text-blue-700">
-        Instagram Reel Downloader
+      <h1 className="text-3xl md:text-4xl font-bold mb-6 text-blue-700 text-center">
+        <span className="text-3xl md:text-4xl font-bold mb-6 text-red-900">
+          Instagram
+        </span>{" "}
+        Reel Downloader
       </h1>
 
-      <InputForm onDownload={handleDownload} />
-      <DownloadList downloadUrls={downloadUrls} onDirectDownload={handleDirectDownload} />
+      <InputField url={url} setUrl={setUrl} selectedQuality={selectedQuality} setSelectedQuality={setSelectedQuality} />
+
+      <DownloadButton handleDownload={handleDownload} loading={loading} />
+
+      <DownloadedReel download={download} handleDirectDownload={handleDirectDownload} />
     </div>
   );
 }
 
-export default MainPage;
+export default App;

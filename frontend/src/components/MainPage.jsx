@@ -19,13 +19,13 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await axios.get("http://127.0.0.1:5000/download/", {
+      const response = await axios.get("http://35.154.81.229:5000/download/", {
         params: { url, quality: selectedQuality },
       });
 
       setDownload({
         videoUrl: response.data.download_url,
-        thumbnailUrl: `http://127.0.0.1:5000/thumbnail/?url=${encodeURIComponent(response.data.thumbnail_url)}`,
+        thumbnailUrl: `http://35.154.81.229:5000/thumbnail/?url=${encodeURIComponent(response.data.thumbnail_url)}`,
         shortcode: response.data.shortcode,
         quality: selectedQuality,
       });

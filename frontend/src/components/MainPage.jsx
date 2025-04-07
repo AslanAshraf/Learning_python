@@ -4,12 +4,14 @@ import InputField from "./InputField";
 import DownloadButton from "./DownloadButton";
 import DownloadedReel from "./DownloadedReel";
 
-function App() {
+function MainPage() {
   const [url, setUrl] = useState("");
   const [download, setDownload] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState("720");
-
+  const THUMBNAIL_API_URL = import.meta.env.VITE_THUMBNAIL_API_URL;
+  const DOWNLOAD_API_URL = import.meta.env.VITE_DOWNLOAD_API_URL;
+  console.log(THUMBNAIL_API_URL)
   const handleDownload = async () => {
     if (!url.trim()) {
       alert("Please enter a valid Instagram Reel URL.");
@@ -19,13 +21,13 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await axios.get("http://35.154.81.229:5000/download/", {
+      const response = await axios.get(DOWNLOAD_API_URL, {
         params: { url, quality: selectedQuality },
       });
 
       setDownload({
         videoUrl: response.data.download_url,
-        thumbnailUrl: `http://35.154.81.229:5000/thumbnail/?url=${encodeURIComponent(response.data.thumbnail_url)}`,
+        thumbnailUrl: `${THUMBNAIL_API_URL}${encodeURIComponent(response.data.thumbnail_url)}`,
         shortcode: response.data.shortcode,
         quality: selectedQuality,
       });
@@ -74,4 +76,4 @@ function App() {
   );
 }
 
-export default App;
+export default MainPage;

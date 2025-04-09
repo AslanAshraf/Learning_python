@@ -34,6 +34,7 @@ def get_reel_data(url: str):
             "shortcode": post.shortcode
         }
     except Exception as e:
+        print(f"Error {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/download/")
